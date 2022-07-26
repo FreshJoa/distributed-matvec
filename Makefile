@@ -40,7 +40,6 @@ CHPL_ARGS =
 
 .PHONY: examples
 examples: bin/Example02 bin/Example05
-# examples: bin/Example01 bin/Example02 bin/Example03 bin/Example04 bin/Example05
 
 .PHONY: test
 test: bin/TestStatesEnumeration bin/TestMatrixVectorProduct
@@ -92,6 +91,12 @@ data/large-scale:
 	mkdir -p data && cd data && \
 	wget -q -O tmp.zip $(TEST_DATA_URL)?path=%2Fdata%2Flarge-scale && \
 	unzip tmp.zip && rm tmp.zip
+
+lib: lib/liblattice_symmetries_chapel.so
+
+lib/liblattice_symmetries_chapel.so: $(MODULES)
+	@mkdir -p $(@D)
+	chpl $(CFLAGS) --library --dynamic -o lattice_symmetries_chapel $^ $(LDFLAGS)
 
 bin/TestStatesEnumeration: test/TestStatesEnumeration.chpl $(MODULES)
 	@mkdir -p $(@D)

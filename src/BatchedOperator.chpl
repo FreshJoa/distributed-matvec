@@ -5,7 +5,6 @@ use Time;
 
 use FFI;
 use ForeignTypes;
-
 use StatesEnumeration;
 
 // TODO: this is currently implemented inefficiently
@@ -195,7 +194,7 @@ record BatchedOperator {
 export proc ls_chpl_operator_apply_diag(matrixPtr : c_ptr(ls_hs_operator),
                                         count : int,
                                         alphas : c_ptr(uint(64)),
-                                        ref coeffs : chpl_external_array,
+                                        coeffs : c_ptr(chpl_external_array),
                                         numTasks : int) {
   logDebug("Calling ls_chpl_operator_apply_diag ...");
   var matrix = new Operator(matrixPtr, owning=false);
@@ -207,16 +206,16 @@ export proc ls_chpl_operator_apply_diag(matrixPtr : c_ptr(ls_hs_operator),
   var _cs : [0 ..# count] real(64) = noinit;
   ls_internal_operator_apply_diag_x1(matrix.payload, count, alphas, c_ptrTo(_cs[0]), nil);
 
-  coeffs = convertToExternalArray(_cs);
+  coeffs.deref() = convertToExternalArray(_cs);
   logDebug("Done! Returning ...");
 }
 
 export proc ls_chpl_operator_apply_off_diag(matrixPtr : c_ptr(ls_hs_operator),
                                             count : int,
                                             alphas : c_ptr(uint(64)),
-                                            ref betas : chpl_external_array,
-                                            ref coeffs : chpl_external_array,
-                                            ref offsets : chpl_external_array,
+                                            betas : c_ptr(chpl_external_array),
+                                            coeffs : c_ptr(chpl_external_array),
+                                            offsets : c_ptr(chpl_external_array),
                                             numTasks : int) {
   logDebug("Calling ls_chpl_operator_apply_off_diag ...");
   var matrix = new Operator(matrixPtr, owning=false);
@@ -240,14 +239,14 @@ export proc ls_chpl_operator_apply_off_diag(matrixPtr : c_ptr(ls_hs_operator),
       c_ptrTo(_offsets[0]),
       nil);
     const betasSize = _offsets[count];
-    betas = convertToExternalArray(_betas);
-    coeffs = convertToExternalArray(_cs);
-    offsets = convertToExternalArray(_offsets);
+    betas.deref() = convertToExternalArray(_betas);
+    coeffs.deref() = convertToExternalArray(_cs);
+    offsets.deref() = convertToExternalArray(_offsets);
   }
   else {
-    betas = new chpl_external_array(nil, 0, nil);
-    coeffs = new chpl_external_array(nil, 0, nil);
-    offsets = convertToExternalArray(_offsets);
+    betas.deref() = new chpl_external_array(nil, 0, nil);
+    coeffs.deref() = new chpl_external_array(nil, 0, nil);
+    offsets.deref() = convertToExternalArray(_offsets);
   }
   logDebug("Done! Returning ...");
 }

@@ -20,6 +20,6 @@ example05() {
             echo "Expected -nl argument specifying the number of locales"
             return 1
     esac
-    mpirun -np $NUM_LOCALES --bind-to none -mca btl_base_warn_component_unused 0 -- \
+    mpirun -n $NUM_LOCALES -mca btl_base_warn_component_unused 0 -- \
         bin/Example05_real -nl$NUM_LOCALES "$@"
 }

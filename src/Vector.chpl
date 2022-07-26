@@ -130,7 +130,7 @@ proc _getDataPtrs(type eltType, const ref counts, ref data) {
 }
 
 
-record LocBlockVector {
+class LocBlockVector {
   type eltType;
   param rank : int;
   var dom : domain(rank);
@@ -140,9 +140,8 @@ record LocBlockVector {
   forwarding data only this;
 }
 
-proc getBlockPtrs(arr) {
-  type eltType = arr.eltType.eltType;
-  var ptrs : [0 ..# arr.size] c_ptr(eltType);
+proc getBlockPtrs(type eltType, const ref arr, ref ptrs) {
+  // var ptrs : [0 ..# arr.size] c_ptr(eltType);
   for i in arr.dim(0) {
     ref locBlock = arr[i];
     if locBlock.dom.size > 0 {
@@ -150,7 +149,7 @@ proc getBlockPtrs(arr) {
       ptrs[i] = __primitive("_wide_get_addr", x):c_ptr(eltType);
     }
   }
-  return ptrs;
+  // return ptrs;
 }
 
 proc getOuterDom(numBlocks : int, param distribute : bool) {
@@ -172,15 +171,19 @@ class BlockVector {
   type eltType;
   param innerRank : int;
   var outerDom;
-  var _locBlocks : [outerDom] LocBlockVector(eltType, innerRank);
+  var _locBlocks : [outerDom] unmanaged LocBlockVector(eltType, innerRank);
   var _dataPtrs;
 
   proc finalizeInitialization(innerDom : domain(innerRank), counts) {
-    forall (i, n) in zip(outerDom, counts) {
+    forall (i, n) in zip(outerDom, counts) with (in innerDom) {
       _locBlocks[i].dom = innerDom;
       _locBlocks[i].count = n;
+      _dataPtrs[i] = c_ptrTo(_locBlocks[i].data[innerDom.low]);
     }
-    _dataPtrs = getBlockPtrs(_locBlocks);
+    // logDebug("this is going to fail...");
+    // _dataPtrs = getBlockPtrs(eltType, _locBlocks);
+    // getBlockPtrs(eltType, _locBlocks, _dataPtrs);
+    // logDebug("hm... nope, it didn't");
   }
   inline proc finalizeInitialization(counts : [] int) {
     finalizeInitialization(getInnerDom(counts), counts);
@@ -189,12 +192,18 @@ class BlockVector {
     finalizeInitialization(getInnerDom(batchSize, counts), counts);
   }
 
+  proc deinit() {
+    forall locBlock in _locBlocks {
+      delete locBlock;
+    }
+  }
+
   proc init(type t, param rank : int, numBlocks : int, param distribute : bool) {
     this.eltType = t;
     this.innerRank = rank;
     const dom = getOuterDom(numBlocks, distribute);
     this.outerDom = dom;
-    this._locBlocks = [i in dom] new LocBlockVector(t, rank);
+    this._locBlocks = [i in dom] new unmanaged LocBlockVector(t, rank);
     this._dataPtrs = [i in 0 ..# numBlocks] nil:c_ptr(t);
   }
 

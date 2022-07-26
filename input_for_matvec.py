@@ -7,7 +7,6 @@ import yaml
 
 np.random.seed(42)
 
-
 def load_hamiltonian(filename: str):
     _, extension = os.path.splitext(filename)
     if extension != ".yaml" and extension != ".yml":
@@ -22,7 +21,7 @@ def load_hamiltonian(filename: str):
     return ls.Operator.load_from_yaml(config["hamiltonian"], basis)
 
 
-def generate(basis_filename: str, output_filename: str, batch_size: int = 1, save: bool = True):
+def generate(basis_filename: str, output_filename: str, batch_size: int = 1):
     hamiltonian = load_hamiltonian(basis_filename)
     hamiltonian.basis.build()
     x = np.random.rand(hamiltonian.basis.number_states, batch_size) - 0.5
@@ -32,35 +31,21 @@ def generate(basis_filename: str, output_filename: str, batch_size: int = 1, sav
     tock = time.time()
     print("{} spent in matrix-vector using OpenMP".format(tock - tick))
 
-    if save:
-        with h5py.File(output_filename, "w") as out:
-            out["/x"] = x.T
-            out["/y"] = y.T
+    with h5py.File(output_filename, "w") as out:
+        out["/x"] = x.T
+        out["/y"] = y.T
 
 
 def main():
-    # On cn18 (32-core Intel Xeon):
-    #   - 24 sites:  0.0928194522857666 spent in matrix-vector using OpenMP
-    #   - 28 sites:  1.5801198482513428 spent in matrix-vector using OpenMP
-    #   - 30 sites:  7.331966161727905 spent in matrix-vector using OpenMP
-    #   - 32 sites:  34.43167591094971 spent in matrix-vector using OpenMP
-    # On cn20 (20-core Intel Xeon):
-    #   - 24 sites: 0.17744112014770508 spent in matrix-vector using OpenMP
-    #   - 28 sites: 2.703888177871704 spent in matrix-vector using OpenMP
-    #   - 30 sites: 12.458613872528076 spent in matrix-vector using OpenMP
-    #   - 32 sites: 55.81617712974548 spent in matrix-vector using OpenMP
-    # On cn71 (64-core AMD Epyc):
-    #   - 24 sites: 0.040898799896240234 spent in matrix-vector using OpenMP
-    #   - 28 sites: 0.6611583232879639 spent in matrix-vector using OpenMP
-    #   - 30 sites: 2.513392210006714 spent in matrix-vector using OpenMP
-    #   - 32 sites: 11.471940994262695 spent in matrix-vector using OpenMP
-    for i in [4, 6, 8, 10, 12, 16, 20, 24, 28, 30, 32]:
-        prefix = "large-scale/" if i >= 24 else ""
+    # generate("data/heisenberg_chain_10.yaml", "data/matvec/heisenberg_chain_10.h5", 1)
+    # generate("data/heisenberg_square_5x5.yaml", "data/matvec/heisenberg_square_5x5.h5", 1)
+    # generate("data/heisenberg_square_6x6.yaml", "data/matvec/heisenberg_square_6x6.h5", 1)
+    # generate("data/old/heisenberg_chain_20.yaml", "data/matvec/heisenberg_chain_20.h5", 1)
+    for i in [10, 12, 16, 20, 24, 28, 32]:
         generate(
             "data/old/heisenberg_chain_{}.yaml".format(i),
-            "data/{}matvec/heisenberg_chain_{}.h5".format(prefix, i),
+            "data/matvec/heisenberg_chain_{}.h5".format(i),
             1,
-            save=True,
         )
 
 
