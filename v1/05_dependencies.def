@@ -1,0 +1,57 @@
+Bootstrap: localimage
+From: 04_haskell.sif
+
+%post -c /bin/bash
+    set -e
+    set -o pipefail
+
+    apt-get clean
+    apt-get update
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        wget tar bzip2
+    rm -rf /var/lib/apt/lists/*
+
+    # Installing Miniconda
+    mkdir -p /opt/tmp
+    cd /opt/tmp
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+    bash miniconda.sh -b -p /opt/conda
+    rm miniconda.sh
+    . /opt/conda/etc/profile.d/conda.sh
+    conda install mamba -n base -c conda-forge
+
+    cat >conda-devel.yml <<-___HERE
+      name: devel
+      channels:
+        - conda-forge
+      dependencies:
+        - gcc_linux-64
+        - gxx_linux-64
+        - zlib
+        - numactl-devel-cos6-x86_64
+___HERE
+    mamba env create -f conda-devel.yml
+    conda activate devel
+
+    # Final linking step
+    cd /opt/lattice-symmetries-haskell
+    export PKG_CONFIG_PATH=/opt/lattice-symmetries/lib/pkgconfig:/opt/hdf5/lib/pkgconfig
+    export GHCUP_INSTALL_BASE_PREFIX=/opt
+    export CABAL_DIR=/opt/.cabal
+    export PATH="$CABAL_DIR/.cabal/bin:$GHCUP_INSTALL_BASE_PREFIX/.ghcup/bin:$PATH"
+    make shared
+
+    # Creating the final release
+    cd /opt/tmp
+    mkdir third_party
+    cp -r /opt/lattice-symmetries/include third_party
+    cp /opt/lattice-symmetries-haskell/cbits/lattice_symmetries_haskell.h third_party/include
+    mkdir third_party/lib
+    cp /opt/lattice-symmetries/lib/liblattice_symmetries.so third_party/lib/
+    cp /opt/lattice-symmetries-haskell/build/liblattice_symmetries_haskell.so third_party/lib/
+    chmod 644 third_party/lib/*.so
+    tar -cf third_party.tar third_party/
+    bzip2 third_party.tar
+
+%runscript
+    cp /opt/tmp/third_party.tar.bz2 /prefix/

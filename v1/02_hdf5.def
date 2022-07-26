@@ -1,0 +1,33 @@
+Bootstrap: docker
+From: debian:unstable-slim
+
+%files
+    pre/hdf5-1.12.1.tar.bz2 /opt/tmp/
+
+%post -c /bin/bash
+    set -eu
+    set -o pipefail
+
+    apt-get clean
+    apt-get update
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        build-essential tar bzip2 zlib1g-dev make gcc-11 g++-11
+    rm -rf /var/lib/apt/lists/*
+
+    # Building HDF5
+    cd /opt/tmp
+    tar -xf hdf5-1.12.1.tar.bz2
+    cd hdf5-1.12.1
+    export CC=gcc-11 CXX=g++-11 CFLAGS="-fPIC"
+    ./configure \
+    	--prefix=/opt/hdf5 \
+        --disable-java --disable-fortran --disable-cxx \
+        --disable-tests --disable-tools --disable-shared
+    make -j $(nproc --all) install
+
+    cd /opt
+    tar -cf hdf5.tar hdf5/
+    bzip2 hdf5.tar
+
+%runscript
+    cp /opt/hdf5.tar.bz2 /prefix/

@@ -1,0 +1,50 @@
+Bootstrap: docker
+From: debian:unstable-slim
+
+%files
+    pre/ghc-8.10.7-x86_64-linux-ubuntu-18.04-2021-12-16.tar.xz /opt/tmp/
+
+%post -c /bin/bash
+    set -eu
+    set -o pipefail
+
+    # GHC requirements
+    apt-get update
+    apt-get install -y --no-install-recommends --no-install-suggests \
+	ca-certificates curl \
+        make gcc-11 g++-11 \
+        libffi6 libffi-dev \
+        libncurses5 libncurses-dev \
+        libtinfo5 \
+        libnuma1 libnuma-dev \
+        libgmp-dev
+    rm -rf /var/lib/apt/lists/*
+
+    # Installing GHCup
+    mkdir -p /opt
+    export CC=gcc-11 CXX=g++-11
+    export CABAL_DIR=/opt/.cabal
+    export GHCUP_INSTALL_BASE_PREFIX=/opt
+    export BOOTSTRAP_HASKELL_NONINTERACTIVE=1
+    export BOOTSTRAP_HASKELL_MINIMAL=1
+    export BOOTSTRAP_HASKELL_VERBOSE=1
+    export BOOTSTRAP_HASKELL_ADJUST_BASHRC=0
+    curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+
+    # Installing GHC
+    source /opt/.ghcup/env
+    mkdir -p /opt/tmp
+    export TMPDIR=/opt/tmp
+    ghcup install ghc \
+        -u 'file:///opt/tmp/ghc-8.10.7-x86_64-linux-ubuntu-18.04-2021-12-16.tar.xz' \
+        8.10.7
+    ghcup set ghc 8.10.7
+    ghcup install cabal 3.6.2.0
+    cabal v2-update hackage.haskell.org,2021-12-13T21:50:08Z
+    rm -rf /opt/tmp
+
+%environment
+    export CC=gcc-11 CXX=g++-11
+    export GHCUP_INSTALL_BASE_PREFIX=/opt
+    export CABAL_DIR=/opt/.cabal
+    export PATH="$CABAL_DIR/.cabal/bin:$GHCUP_INSTALL_BASE_PREFIX/.ghcup/bin:$PATH"

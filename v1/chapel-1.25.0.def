@@ -1,0 +1,48 @@
+Bootstrap: localimage
+From: base.sif
+
+%files
+    chapel-1.25.0.tar.gz /chapel/
+
+%runscript
+    /bin/bash "$@"
+
+%post -c /bin/bash
+    set -eu
+
+    cd /chapel
+    tar xfz chapel-1.25.0.tar.gz
+    cd chapel-1.25.0
+
+    # export MPICH_CC=clang-11 MPICH_CXX=clang++-11
+    export CC=gcc CXX=g++ CF=gfortran \
+           PMI_HOME=/usr/lib/x86_64-linux-gnu/pmix2
+    # PMI_HOME setting...           (default)  "/usr"
+    # checking for PMI_LDFLAGS setting...        (default)  ""
+    # checking for PMI_LIBS setting...           (default)  "probe"
+
+    export MANPATH= \
+           CHPL_LAUNCHER=none \
+           CHPL_COMM=none \
+           CHPL_LLVM=system \
+           CHPL_HWLOC=bundled \
+           CHPL_UNWIND=none \
+           CHPL_GMP=none \
+           CHPL_RE2=none
+    . util/setchplenv.bash
+    make -j $(nproc --all)
+
+    export CHPL_COMM=gasnet \
+           CHPL_COMM_SUBSTRATE=ibv \
+           CHPL_GASNET_SEGMENT=fast
+    make -j $(nproc --all)
+
+    export CHPL_COMM=gasnet \
+           CHPL_COMM_SUBSTRATE=mpi \
+           CHPL_GASNET_SEGMENT=
+    make -j $(nproc --all)
+
+%environment
+    export LC_ALL=C.UTF-8
+    export CONTAINER_NAME=chapel
+    export CONTAINER_VERSION=1.25.0

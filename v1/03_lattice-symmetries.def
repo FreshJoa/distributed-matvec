@@ -1,0 +1,54 @@
+Bootstrap: docker
+From: debian:unstable-slim
+
+%post -c /bin/bash
+    set -e
+    set -o pipefail
+
+    apt-get update
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        ca-certificates wget git tar bzip2
+
+    mkdir -p /opt/tmp
+    cd /opt/tmp
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+    bash miniconda.sh -b -p /opt/conda
+    rm miniconda.sh
+    . /opt/conda/etc/profile.d/conda.sh
+    conda install mamba -n base -c conda-forge
+
+    cat >conda-devel.yml <<-___HERE
+      name: devel
+      channels:
+        - conda-forge
+      dependencies:
+        - gcc_linux-64
+        - gxx_linux-64
+        - cmake
+        - ninja
+___HERE
+    mamba env create -f conda-devel.yml
+    conda activate devel
+
+    # Building C++ code
+    cd /opt
+    git clone https://github.com/twesterhout/lattice-symmetries.git
+    cd lattice-symmetries
+    git submodule update --init
+    cmake -GNinja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/opt/tmp/lattice-symmetries \
+          -DLatticeSymmetries_ENABLE_UNIT_TESTING=OFF \
+          -DLatticeSymmetries_ENABLE_PROFILING=OFF \
+	  -DLatticeSymmetries_LINK_STDLIB_STATICALLY=ON \
+          -S . -B build
+    cmake --build build --target install
+
+    # Creating a release
+    cd /opt/tmp
+    tar -cf lattice-symmetries.tar lattice-symmetries/
+    bzip2 lattice-symmetries.tar
+
+%runscript
+    cp /opt/tmp/lattice-symmetries.tar.bz2 /prefix/

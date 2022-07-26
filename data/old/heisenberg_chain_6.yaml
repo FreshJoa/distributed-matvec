@@ -1,0 +1,13 @@
+basis:
+  number_spins: 6
+  hamming_weight: 3
+  symmetries: []
+hamiltonian:
+  name: "Heisenberg Hamiltonian"
+  terms:
+    - matrix: [ [1,  0,  0,  0],
+                [0, -1,  2,  0],
+                [0,  2, -1,  0],
+                [0,  0,  0,  1] ]
+      sites: [ [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0] ]
+

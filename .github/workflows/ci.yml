@@ -1,0 +1,75 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  LS_HS_VERSION: 812bf24
+
+jobs:
+  linux_tests:
+    runs-on: ubuntu-latest
+    # latest
+    container:
+      image: chapel/chapel:1.26.0 # or chapel/chapel-gasnet-smp if you want multi-locale
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies (1)
+      run: |
+        apt-get update
+    - name: Install dependencies (2)
+      run: |
+        apt-get install -y --no-install-recommends libnuma-dev libgmp-dev libffi-dev patchelf bzip2 unzip
+    - name: Install dependencies (3)
+      run: |
+        wget --no-verbose https://github.com/twesterhout/lattice-symmetries-haskell/releases/download/continuous/lattice-symmetries-haskell-${LS_HS_VERSION}-ubuntu-18.04.tar.bz2
+        tar -xf lattice-symmetries-haskell-${LS_HS_VERSION}-ubuntu-18.04.tar.bz2
+        mv lattice-symmetries-haskell-${LS_HS_VERSION} third_party
+        # patchelf --set-rpath '$ORIGIN' third_party/lib/liblattice_symmetries_haskell.so
+        ldd third_party/lib/liblattice_symmetries_haskell.so
+    - name: Build
+      run: |
+        make
+    - uses: actions/cache@v3
+      name: Cache test data
+      with:
+        path: |
+          data/construction
+          data/matvec
+        key: test-data-v2
+    - name: Test
+      run: |
+        make check
+    - name: Run examples
+      run: |
+        export LD_LIBRARY_PATH=$PWD/third_party/lib:$LD_LIBRARY_PATH
+        bin/Example01
+
+  mac_tests:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        brew install chapel
+
+        wget -q https://github.com/twesterhout/lattice-symmetries-haskell/releases/download/continuous/lattice-symmetries-haskell-${LS_HS_VERSION}-macos-latest.tar.bz2
+        tar -xf lattice-symmetries-haskell-${LS_HS_VERSION}-macos-latest.tar.bz2
+        mv lattice-symmetries-haskell-${LS_HS_VERSION} third_party
+        otool -L third_party/lib/liblattice_symmetries_haskell.dylib
+    - name: Build
+      run: |
+        make
+    - uses: actions/cache@v3
+      name: Cache test data
+      with:
+        path: |
+          data/construction
+          data/matvec
+        key: test-data-v1
+    - name: Test
+      run: |
+        make check
+    - name: Run examples
+      run: |
+        export DYLD_LIBRARY_PATH=$PWD/third_party/lib:$DYLD_LIBRARY_PATH
+        bin/Example01

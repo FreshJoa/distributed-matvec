@@ -1,0 +1,58 @@
+Bootstrap: localimage
+From: 01_ghc.sif
+
+%files
+    assets/lattice-symmetries.tar.bz2 /opt/
+    assets/hdf5.tar.bz2 /opt/
+
+%post -c /bin/bash
+    set -eu
+    set -o pipefail
+
+    apt-get update
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        bzip2 pkg-config git zlib1g-dev
+    rm -rf /var/lib/apt/lists/*
+
+    cd /opt
+    tar -xf lattice-symmetries.tar.bz2
+    rm lattice-symmetries.tar.bz2
+    tar -xf hdf5.tar.bz2
+    rm hdf5.tar.bz2
+
+    # Create pkg-config files for dependencies
+    cat >lattice-symmetries/lib/pkgconfig/lattice_symmetries.pc <<-___HERE
+        prefix=/opt/lattice-symmetries
+        libdir=\${prefix}/lib
+        includedir=\${prefix}/include
+
+        Name: Lattice Symmetries
+        Description: Library for quantum many-body bases with support for arbitrary lattice symmetries
+        Version: 1.0.1
+        Cflags: -I\${includedir}
+        Libs: -L\${libdir} -llattice_symmetries
+___HERE
+    mkdir -p hdf5/lib/pkgconfig
+    cat >hdf5/lib/pkgconfig/hdf5.pc <<-___HERE
+        prefix=/opt/hdf5
+        libdir=\${prefix}/lib
+        includedir=\${prefix}/include
+
+        Name: HDF5
+        Description: Hierarchical Data Format 5 (HDF5)
+        Version: 1.12.1
+        Requires:
+        Cflags: -I\${includedir}
+        Libs: -L\${libdir} -lhdf5
+___HERE
+    export PKG_CONFIG_PATH=/opt/lattice-symmetries/lib/pkgconfig:/opt/hdf5/lib/pkgconfig
+
+    # Building Haskell code
+    cd /opt
+    git clone https://github.com/twesterhout/lattice-symmetries-haskell.git
+    cd lattice-symmetries-haskell
+    export CC=gcc-11 CXX=g++-11
+    export GHCUP_INSTALL_BASE_PREFIX=/opt
+    export CABAL_DIR=/opt/.cabal
+    export PATH="$CABAL_DIR/.cabal/bin:$GHCUP_INSTALL_BASE_PREFIX/.ghcup/bin:$PATH"
+    cabal new-build -fuse-pkgconfig
