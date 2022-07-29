@@ -220,7 +220,7 @@ module ForeignTypes {
     }
     proc init(raw : c_ptr(ls_hs_operator), owning : bool = true) {
       this.payload = raw;
-      this.basis = new Basis(this.payload.deref().basis);
+      this.basis = new Basis(this.payload.deref().basis, owning=owning);
     }
     proc init=(const ref from : Operator) {
       halt("Operator.init= is not yet implemented");

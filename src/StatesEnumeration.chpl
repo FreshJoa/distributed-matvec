@@ -24,6 +24,7 @@ config const statesFromHashedToBlockNumChunks = 2 * here.maxTaskPar;
 config const statesFromBlockToHashedNumChunks = 2 * numLocales * here.maxTaskPar;
 config const kUseLowLevelComm : bool = true;
 // config const numChunksPerLocale = 3;
+config const enableSegFault : bool = false;
 
 inline proc GET(addr, node, rAddr, size) {
   __primitive("chpl_comm_get", addr, node, rAddr, size);
@@ -639,8 +640,11 @@ proc enumerateStates(ranges : [] range(uint(64)), const ref basis : Basis, out _
   // Simple assignment fails with a segmentation fault when compiling with
   // CHPL_COMM=none. This is a workaround
   var basisStatesPtrs : [0 ..# numLocales] c_ptr(uint(64)) = noinit;
-  c_memcpy(c_ptrTo(basisStatesPtrs), c_const_ptrTo(basisStates._dataPtrs),
-           numLocales:c_size_t * c_sizeof(c_ptr(uint(64))));
+  if enableSegFault then
+    basisStatesPtrs = basisStates._dataPtrs;
+  else
+    c_memcpy(c_ptrTo(basisStatesPtrs), c_const_ptrTo(basisStates._dataPtrs),
+             numLocales:c_size_t * c_sizeof(c_ptr(uint(64))));
   // logDebug("634: nope it didn't");
 
   // Allocate space for masks
